@@ -1,0 +1,15 @@
+assets/
+work/
+outputs/
+train_logs/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.db3
+*.tar.gz
+*.tar.gz.sha256
+.env
+.DS_Store
+._*

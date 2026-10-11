@@ -1,0 +1,4 @@
+# Tested additions to Isaac Sim 5.1 / NumPy 1.26. Install with --no-deps.
+# Keep Isaac Sim's own NumPy, USD, renderer and CUDA dependencies.
+scipy==1.15.3
+opencv-python-headless==4.11.0.86
