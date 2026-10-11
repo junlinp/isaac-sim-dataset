@@ -14,9 +14,13 @@ p.add_argument("--dataset", required=True)
 a = p.parse_args()
 root = Path(a.dataset)
 m = json.loads((root / "manifest.json").read_text())
+configure_trajectory(m.get("trajectory_duration_s", 120))
 truth_file = np.load(root / "sensor_truth.npz")
 truth = {k: truth_file[k] for k in truth_file.files}
 truth_file.close()
+generated = evaluate(truth["t"])
+for key, expected in generated.items():
+    assert np.allclose(truth[key], expected, rtol=0, atol=1e-10), key
 N = m["imu_samples"]
 C = m["camera_pairs"]
 cal = m["calibration"]
@@ -168,7 +172,7 @@ for i, row in enumerate(tum_rows):
         atol=1e-14,
     )
 # Stationary optical frame: gravity is not assumed to lie on optical z.
-stationary = (truth["t"] < 5) | (truth["t"] >= 115)
+stationary = (truth["t"] < 5) | (truth["t"] >= trajectory_duration() - 5)
 assert np.max(np.linalg.norm(truth["w_body"][stationary], axis=1)) < 1e-7
 assert np.allclose(
     truth["f_body"][stationary],
@@ -319,7 +323,17 @@ probe = json.loads(
     )
 )
 assert int(probe["streams"][0]["nb_read_frames"]) == C
+max_speed = float(np.max(np.linalg.norm(truth["v_world"], axis=1)))
+right_velocity = truth["v_world"] + np.einsum(
+    "nij,nj->ni", truth["R"],
+    np.cross(truth["w_body"], np.array([BASELINE, 0, 0])),
+)
+max_right_speed = float(np.max(np.linalg.norm(right_velocity, axis=1)))
 validation = dict(
+    trajectory_duration_s=trajectory_duration(),
+    maximum_speed_m_s=max_speed,
+    maximum_right_camera_speed_m_s=max_right_speed,
+    generating_trajectory_compared=True,
     status="passed",
     ideal_integration_tolerances=dict(
         position_m=0.05,

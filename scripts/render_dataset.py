@@ -10,8 +10,12 @@ from io_utils import link_or_copy
 p = argparse.ArgumentParser()
 p.add_argument("--output", required=True)
 p.add_argument("--duration", type=float, default=120)
+p.add_argument("--trajectory-duration", type=float, default=120)
 p.add_argument("--gpu", type=int, default=1)
 a = p.parse_args()
+configure_trajectory(a.trajectory_duration)
+if a.duration <= 0 or a.duration > a.trajectory_duration:
+    p.error("Recording duration must be positive and no longer than trajectory duration")
 out = Path(a.output)
 out.mkdir(parents=True, exist_ok=False)
 for folder in ["mav0/cam0/data", "mav0/cam1/data", "scene/textures"]:
@@ -73,7 +77,7 @@ try:
         UsdGeom.Xformable(lamp).AddTranslateOp().Set(Gf.Vec3d(x, y, z - 0.18))
     # Some corridors have emissive meshes without authored LightAPI fixtures.
     # Fixed ceiling fill lights follow the route, spaced at least 3 m apart.
-    route_points = evaluate(np.linspace(5, 115, 4401))["p"]
+    route_points = evaluate(np.linspace(5, trajectory_duration() - 5, 4401))["p"]
     fill_positions = []
     for point in route_points:
         if (
@@ -153,7 +157,7 @@ try:
         )
     )
     inspection = []
-    for ii, t in enumerate([0, 25, 45, 65, 85, 110]):
+    for ii, t in enumerate(np.array([0, 25, 45, 65, 85, 110]) / 120 * trajectory_duration()):
         state = evaluate([t])
         left = np.eye(4)
         left[:3, :3] = state["R"][0]
@@ -253,6 +257,7 @@ try:
             dict(
                 status="rendered",
                 duration_s=a.duration,
+                trajectory_duration_s=trajectory_duration(),
                 stereo_pairs=n,
                 width=WIDTH,
                 height=HEIGHT,

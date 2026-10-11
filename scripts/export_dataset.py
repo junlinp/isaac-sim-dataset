@@ -21,6 +21,7 @@ a = p.parse_args()
 root = Path(a.dataset)
 report = json.loads((root / "render_report.json").read_text())
 duration = report["duration_s"]
+configure_trajectory(report.get("trajectory_duration_s", 120))
 N = int(round(duration * 200))
 ncam = report["stereo_pairs"]
 assert N == ncam * 10
@@ -350,7 +351,8 @@ manifest = dict(
         for k, v in topics.items()
     },
     calibration=cal,
-    trajectory="stationary 0..5s and 115..120s; one closed NVIDIA Office corridor route with quintic easing and pitch/roll; IMU co-located with left optical camera",
+    trajectory_duration_s=trajectory_duration(),
+    trajectory=f"stationary 0..5s and {trajectory_duration()-5}..{trajectory_duration()}s; one closed NVIDIA Office corridor route with quintic easing and pitch/roll; IMU co-located with left optical camera",
     timestamps=dict(start_ns=T0_NS, camera_dt_ns=CAMERA_DT_NS, imu_dt_ns=IMU_DT_NS),
     simulator="Isaac Sim 5.1.0",
     ground_truth_twist="linear and angular expressed in left camera optical frame",

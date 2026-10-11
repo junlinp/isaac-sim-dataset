@@ -14,7 +14,7 @@ Working files are written under `ISAAC_DATASET_WORKDIR` (default `work/`). A sma
 
 ## Continuous pose and IMU
 
-`trajectory.py` defines the sensor contract and `evaluate(t)`. It returns position, rotation, quaternion, world/body velocity, world acceleration, body angular velocity, and body specific force. The quintic timing function holds still before 5 s and after 115 s. Height varies around 1.35 m with 6 cm amplitude; pitch and roll vary gently.
+`trajectory.py` defines the sensor contract and `evaluate(t)`. It returns position, rotation, quaternion, world/body velocity, world acceleration, body angular velocity, and body specific force. The quintic timing function holds still during the first and last five seconds of the configured trajectory (120 s by default). Height varies around 1.35 m with 6 cm amplitude; pitch and roll vary gently.
 
 All image poses, IMU readings, and ground-truth values come from this same function. Ground truth uses the left camera/IMU pose, not a displaced robot body or simulator viewport camera.
 
@@ -44,7 +44,7 @@ Scene assets are hardlinked into the output when possible, with a copy fallback 
 
 `validate_dataset.py` reads every bag message, compares all recorded data to source files, checks timestamps/calibration/frames, integrates ideal IMU samples, samples stereo feature matches, and produces a side-by-side video. Numerical integration tolerances are recorded in the report; sampled stereo checks do not prove every correspondence is correct.
 
-`check_ros2_playback.py` uses native Humble subscribers and cv_bridge. It starts the player paused, waits for discovery, resumes, and verifies every expected count and timestamp at 2× playback.
+`check_ros2_playback.py` uses native Humble subscribers and cv_bridge. It starts the player paused, waits for discovery, resumes, and verifies every expected count and timestamp at 2× playback by default. Set `ROS_PLAYBACK_RATE=1` to check at real time.
 
 `finalize_dataset.py` checks resolved USD dependencies, actual camera projection/extrinsics and final pose, then snapshots sources and creates file/archive SHA-256 checksums. Use an explicit `--archive NEW_PATH` if repackaging an existing dataset after updating source documentation.
 
@@ -52,8 +52,21 @@ Scene assets are hardlinked into the output when possible, with a copy fallback 
 
 - Change camera/IMU constants and calibration together in `scripts/trajectory.py`; the current validator intentionally enforces the documented contract.
 - Change Office waypoints in `scripts/build_route.py`, then rerun preparation and the clearance check.
-- Change trajectory timing, height, or orientation in `scripts/trajectory.py`. Changing recording length alone does not rescale the 120 s route; the wrapper therefore supports only 5 s smoke and 120 s full recordings.
+- Set `--duration SECONDS` to time-scale the full route, preserving five stationary seconds at each end. For a short prefix smoke test of a longer route, also set `--trajectory-duration SECONDS`; the render report persists this setting for export and validation. The special `--duration 5` default remains a five-second prefix of the 120 s reference route.
+- For the reference Office spline, `--duration 415` gives about 0.988 m/s peak speed, 8,300 stereo pairs, and 83,000 IMU/ground-truth samples. This bound depends on the route: recompute peak speed after changing the spline.
+- Change height or orientation in `scripts/trajectory.py`.
 - Change noise in `scripts/export_dataset.py`; its calibration/manifest export records the values.
 - For another USD environment, change the asset entry, floor/obstacle extraction, route, and lighting together. The existing floor mesh name filters and waypoint coordinates are specific to Office.
 
 This release generates static-scene, prescribed-camera-motion data. It does not simulate rolling shutter, exposure integration, hardware clock drift, camera thermal noise, robot contact dynamics, or a physical IMU device model. Those would require additional models and validation.
+
+Example slower capture (run the smoke test first):
+
+```bash
+bash scripts/generate.sh --output /mnt/data/isaac_datasets/office_slow_smoke01 \
+  --duration 5 --trajectory-duration 415 --gpu 1 --native-playback
+bash scripts/generate.sh --output /mnt/data/isaac_datasets/office_slow01 \
+  --duration 415 --gpu 1 --package
+```
+
+For TinyNav, pass `--seconds 415` to `run_mapping.py` so the entire bag is processed. The stereo rate remains 20 Hz and the IMU rate remains 200 Hz.

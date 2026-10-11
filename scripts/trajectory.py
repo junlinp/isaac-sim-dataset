@@ -20,12 +20,27 @@ OPTICAL_TO_FORWARD = np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]], float)
 GRAVITY = np.array([0.0, 0.0, -9.81])
 
 
+TRAJECTORY_DURATION_S = 120.0
+
+
+def configure_trajectory(duration_s):
+    global TRAJECTORY_DURATION_S
+    if not np.isfinite(duration_s) or duration_s <= 10:
+        raise ValueError("Trajectory duration must exceed the two 5 s stationary periods")
+    TRAJECTORY_DURATION_S = float(duration_s)
+
+
+def trajectory_duration():
+    return TRAJECTORY_DURATION_S
+
+
 def phase(t):
     t = np.asarray(t, float)
-    s = np.clip((t - 5) / 110, 0, 1)
+    moving_s = TRAJECTORY_DURATION_S - 10
+    s = np.clip((t - 5) / moving_s, 0, 1)
     q = 10 * s**3 - 15 * s**4 + 6 * s**5
-    dq = (30 * s**2 - 60 * s**3 + 30 * s**4) / 110
-    ddq = (60 * s - 180 * s**2 + 120 * s**3) / 110**2
+    dq = (30 * s**2 - 60 * s**3 + 30 * s**4) / moving_s
+    ddq = (60 * s - 180 * s**2 + 120 * s**3) / moving_s**2
     return 2 * np.pi * q, 2 * np.pi * dq, 2 * np.pi * ddq
 
 

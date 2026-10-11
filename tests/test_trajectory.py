@@ -53,3 +53,26 @@ def test_discrete_ideal_imu_recovers_full_trajectory():
     assert max_p < 0.01
     assert max_v < 0.01
     assert max_r < 0.0001
+
+
+def test_slow_route_speed_limit_and_time_scaling():
+    from trajectory import configure_trajectory
+
+    original_t = np.linspace(5, 115, 44001)
+    original = evaluate(original_t)
+    scale = 405 / 110
+    slow_t = 5 + (original_t - 5) * scale
+    try:
+        configure_trajectory(415)
+        slow = evaluate(slow_t)
+        assert np.max(np.linalg.norm(slow['v_world'], axis=1)) < 1.0
+        assert np.allclose(slow['p'], original['p'], atol=1e-10)
+        assert np.allclose(slow['R'], original['R'], atol=1e-10)
+        assert np.allclose(slow['v_world'] * scale, original['v_world'], atol=1e-9)
+        assert np.allclose(slow['a_world'] * scale**2, original['a_world'], atol=1e-8)
+        assert np.allclose(slow['w_body'] * scale, original['w_body'], atol=1e-7)
+        stationary = evaluate([0, 5, 410, 414.995])
+        assert np.allclose(stationary['v_world'], 0, atol=1e-10)
+        assert np.allclose(stationary['p'], stationary['p'][0], atol=1e-9)
+    finally:
+        configure_trajectory(120)
